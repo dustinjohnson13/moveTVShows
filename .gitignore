@@ -1,0 +1,6 @@
+flexget.log*
+*.iml
+.idea/
+build/
+.gradle/
+db-config.sqlite

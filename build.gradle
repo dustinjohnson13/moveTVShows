@@ -1,0 +1,166 @@
+import groovy.sql.Sql
+
+apply plugin: 'java'
+apply plugin: 'groovy'
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath group: 'org.xerial', name: 'sqlite-jdbc', version: '3.14.2.1'
+    }
+}
+
+URLClassLoader loader = GroovyObject.class.classLoader
+buildscript.configurations.classpath.each { File file ->
+    loader.addURL(file.toURL())
+}
+
+ext {
+    sql = Sql.newInstance('jdbc:sqlite:db-config.sqlite', 'org.sqlite.JDBC')
+    tvShowDirectory = new File(project.property('tvShowDirectory'))
+    completedDownloadsDirectory = new File(project.property('completedDownloadsDirectory'))
+    rssFeed = project.property('rssFeed')
+
+    if (project.hasProperty('completedDownloadsFileExclusions')) {
+        completedDownloadsFileExclusions = project.property('completedDownloadsFileExclusions').toString().tokenize(',')
+
+        logger.lifecycle "Using explicit completed downloads file exclusions: ${completedDownloadsFileExclusions}"
+    } else {
+        completedDownloadsFileExclusions = ['**/*.ass', '**/*.css', '**/*.divx', '**/*.DS_Store', '**/*.html', '**/*.jpg',
+                                            '**/*.js', '**/*.nfo', '**/*.sfv', '**/*.srr', '**/*.srt', '**/*.txt', '**/*sample.*']
+
+        logger.lifecycle "Using default completed downloads file exclusions: ${completedDownloadsFileExclusions}, override with -PcompletedDownloadsFileExclusions='<pattern1>, <pattern2>'"
+    }
+
+    flexgetDir = new File(project.buildDir, 'flexget')
+}
+
+task createVirtualEnv(type: Exec) {
+    outputs.dir flexgetDir
+
+    commandLine 'bash', '-c', "virtualenv \"${flexgetDir.absolutePath}\""
+}
+
+task installFlexget(type: Exec, dependsOn: [createVirtualEnv]) {
+    inputs.dir flexgetDir
+    outputs.file new File(flexgetDir, 'bin/flexget')
+
+    workingDir flexgetDir
+    commandLine './bin/pip', 'install', 'flexget'
+}
+
+task installTransmissionRPC(type: Exec, dependsOn: [createVirtualEnv]) {
+    inputs.dir flexgetDir
+    outputs.file new File(flexgetDir, 'bin/transmissionrpc')
+
+    workingDir flexgetDir
+    commandLine './bin/pip', 'install', 'transmissionrpc'
+}
+
+task flexget(type: Exec, dependsOn: [installFlexget, installTransmissionRPC]) {
+
+    workingDir flexgetDir
+    commandLine './bin/flexget', '-c', new File(project.projectDir, 'config.yml').absolutePath,
+            '-l', "${project.buildDir}/flexget.log", 'execute', '--cli-config', "rssFeed=${rssFeed}"
+}
+
+task moveFinishedDownloads() {
+
+    inputs.dir completedDownloadsDirectory
+    outputs.upToDateWhen { true }
+
+    doFirst {
+        completedDownloadsDirectory.eachFile() { file ->
+
+            def fileName = file.name
+            logger.lifecycle "Working on: ${fileName}"
+
+            def showFinder = (fileName =~ /^(?i)(.*)S\d{1,2}E\d{1,2}.*/)
+
+            if (!showFinder.matches()) {
+                return;
+            }
+
+            String show = showFinder.group(1).replaceAll(/\./, ' ').trim()
+            logger.info "Determined show: $show"
+
+            File showDir = new File(tvShowDirectory, show)
+            showDir.mkdirs()
+
+            if (file.isFile()) {
+                logger.lifecycle "Moving ${fileName} to ${showDir}"
+
+                file.renameTo(new File(showDir, file.getName()));
+            } else {
+                logger.lifecycle "Moving contents of ${fileName} to ${showDir}"
+
+                ant.move(todir: showDir, includeEmptyDirs: false) {
+                    fileset(dir: file, excludes: completedDownloadsFileExclusions.join(', ')) {
+                        include(name: '**/**')
+                    }
+                    flattenmapper()
+                }
+
+                ant.delete(dir: file)
+            }
+        }
+    }
+}
+
+task run(dependsOn: [flexget, moveFinishedDownloads])
+
+task updateHistoryFile(dependsOn: [], description: 'Generates the history.html file') {
+
+    def downloadsHistory = new File(tvShowDirectory, 'downloads')
+
+    inputs.property('newestDownload', { sql.firstRow("select max(id) from history")[0] })
+    outputs.dir downloadsHistory
+
+    doFirst {
+
+        Map<String, List<String>> downloadsByDay = [:] as LinkedHashMap
+
+        sql.eachRow('select title, time from history order by time desc') { row ->
+            def title = row.title
+            def time = Date.parse('yyyy-MM-dd', row.time).format('MMMM dd, yyyy')
+
+            List<String> titles = downloadsByDay[time]
+            if (titles == null) {
+                titles = new ArrayList<>()
+                downloadsByDay[time] = titles
+            }
+
+            titles.add(title)
+        }
+
+        def downloads = ''
+        downloadsByDay.each { day, downloaded ->
+            downloads += "\n<h4>${day}</h4>\n<table class=\"table-striped\">"
+
+            downloaded.each {
+                downloads += "<tr><td>${it}</td></tr>\n"
+            }
+
+            downloads += "</table>\n"
+        }
+
+        ant.copy(todir: downloadsHistory, encoding: 'UTF-8') {
+            fileset(dir: 'src/main/resources') {
+                include(name: '*.html')
+            }
+            filterset {
+                filter(token: 'downloads', value: downloads)
+            }
+        }
+        ant.copy(todir: downloadsHistory, encoding: 'UTF-8') {
+            fileset(dir: 'src/main/resources') {
+                include(name: '**/*.css')
+            }
+        }
+    }
+}
+
+task postProcessing(dependsOn: [updateHistoryFile])
