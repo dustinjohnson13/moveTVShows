@@ -148,7 +148,7 @@ task updateHistoryFile(dependsOn: [], description: 'Generates the history.html f
             downloads += "</table>\n"
         }
 
-        ant.copy(todir: downloadsHistory, encoding: 'UTF-8') {
+        ant.copy(todir: downloadsHistory, encoding: 'UTF-8', overwrite: true) {
             fileset(dir: 'src/main/resources') {
                 include(name: '*.html')
             }
