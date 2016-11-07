@@ -115,8 +115,9 @@ task run(dependsOn: [flexget, moveFinishedDownloads])
 task updateHistoryFile(dependsOn: [], description: 'Generates the history.html file') {
 
     def downloadsHistory = new File(tvShowDirectory, 'downloads')
+    def newestDownload = sql.firstRow("select max(id) from history")[0]
 
-    inputs.property('newestDownload', { sql.firstRow("select max(id) from history")[0] })
+    inputs.property('newestDownload', newestDownload)
     outputs.dir downloadsHistory
 
     doFirst {
