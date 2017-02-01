@@ -6,6 +6,7 @@ tasks:
       host: localhost
       port: 9091
       addpaused: No
+      ratio: 0
     clean_transmission:
       host: localhost
       port: 9091
