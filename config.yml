@@ -12,4 +12,4 @@ tasks:
       port: 9091
       finished_for: 2 days
       directories:
-        - \A/+data/+apps/+torrent/+complete(\Z|/+.*)
+        - \A/+data/+apps/+downloads/+complete(\Z|/+.*)
