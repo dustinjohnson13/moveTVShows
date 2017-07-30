@@ -26,7 +26,8 @@ stage('Run') {
             def email = [to: emailAddress, from: emailAddress, subject: "$build failed!", body: "${env.JOB_NAME} failed! See ${env.BUILD_URL} for details."]
             def notify = [email: email]
 
-            sh "curl -X 'POST' $notifierEndpoint -H 'Content-Type: application/json' -d '${JsonOutput.toJson(notify)}'"
+            def cmd = env.NOTIFY_COMMAND + " -d '${JsonOutput.toJson(notify)}'"
+            sh cmd
 
             throw err
         }
