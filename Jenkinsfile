@@ -11,10 +11,7 @@ stage('Run') {
 
             checkout scm
 
-            // # Symlink the database if it doesn't exist
-            sh '[ -f db-config.sqlite ] || ln -s /data/archives/video/tv/downloads/db-config.sqlite'
             sh './gradlew run'
-            sh './gradlew postProcessing'
 
         } catch (err) {
             currentBuild.result = "FAILURE"
