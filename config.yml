@@ -5,11 +5,19 @@ tasks:
     transmission:
       host: localhost
       port: 9091
-      addpaused: No
       ratio: 0
-    clean_transmission:
+  remove stale torrents:
+    disable: [ seen, seen_info_hash ]
+    from_transmission:
       host: localhost
+      only_complete: yes
       port: 9091
-      finished_for: 2 days
-      directories:
-        - \A/+data/+apps/+downloads/+complete(\Z|/+.*)
+    if:
+      - transmission_date_done > now - timedelta(days=2): reject
+      - transmission_progress == 100: accept
+      - not transmission_seed_ratio_ok: reject
+      - not transmission_idle_limit_ok: reject
+    regexp:
+      reject_excluding:
+        - "/data/apps/downloads/complete":
+            from: transmission_downloadDir

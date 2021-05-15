@@ -54,10 +54,10 @@ task installFlexget(type: Exec, dependsOn: [createVirtualEnv]) {
 
 task installTransmissionRPC(type: Exec, dependsOn: [createVirtualEnv]) {
     inputs.dir flexgetDir
-    outputs.file new File(flexgetDir, 'bin/transmissionrpc')
+    outputs.file new File(flexgetDir, 'bin/transmission-rpc')
 
     workingDir flexgetDir
-    commandLine './bin/pip', 'install', 'transmissionrpc'
+    commandLine './bin/pip', 'install', 'transmission-rpc'
 }
 
 task flexget(type: Exec, dependsOn: [installFlexget, installTransmissionRPC]) {
