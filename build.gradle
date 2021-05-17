@@ -1,25 +1,8 @@
-import groovy.sql.Sql
 
 apply plugin: 'java'
 apply plugin: 'groovy'
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath group: 'org.xerial', name: 'sqlite-jdbc', version: '3.14.2.1'
-    }
-}
-
-URLClassLoader loader = GroovyObject.class.classLoader
-buildscript.configurations.classpath.each { File file ->
-    loader.addURL(file.toURL())
-}
-
 ext {
-    sql = Sql.newInstance('jdbc:sqlite:db-config.sqlite', 'org.sqlite.JDBC')
     tvShowDirectory = new File(project.property('tvShowDirectory'))
     completedDownloadsDirectory = new File(project.property('completedDownloadsDirectory'))
     rssFeed = project.property('rssFeed')
@@ -45,7 +28,6 @@ task createVirtualEnv(type: Exec) {
 }
 
 task installFlexget(type: Exec, dependsOn: [createVirtualEnv]) {
-    inputs.dir flexgetDir
     outputs.file new File(flexgetDir, 'bin/flexget')
 
     workingDir flexgetDir
@@ -53,7 +35,6 @@ task installFlexget(type: Exec, dependsOn: [createVirtualEnv]) {
 }
 
 task installTransmissionRPC(type: Exec, dependsOn: [createVirtualEnv]) {
-    inputs.dir flexgetDir
     outputs.file new File(flexgetDir, 'bin/transmission-rpc')
 
     workingDir flexgetDir
