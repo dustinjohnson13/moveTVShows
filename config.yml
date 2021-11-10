@@ -19,5 +19,5 @@ tasks:
       - not transmission_idle_limit_ok: reject
     regexp:
       reject_excluding:
-        - "/data/apps/downloads/complete":
+        - "/data/apps/downloads/completed":
             from: transmission_downloadDir
