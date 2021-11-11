@@ -5,7 +5,6 @@ apply plugin: 'groovy'
 ext {
     tvShowDirectory = new File(project.property('tvShowDirectory'))
     completedDownloadsDirectory = new File(project.property('completedDownloadsDirectory'))
-    rssFeed = project.property('rssFeed')
 
     if (project.hasProperty('completedDownloadsFileExclusions')) {
         completedDownloadsFileExclusions = project.property('completedDownloadsFileExclusions').toString().tokenize(',')
@@ -17,41 +16,12 @@ ext {
 
         logger.lifecycle "Using default completed downloads file exclusions: ${completedDownloadsFileExclusions}, override with -PcompletedDownloadsFileExclusions='<pattern1>, <pattern2>'"
     }
-
-    flexgetDir = new File(project.buildDir, 'flexget')
-}
-
-task createVirtualEnv(type: Exec) {
-    outputs.dir flexgetDir
-
-    commandLine 'bash', '-c', "virtualenv \"${flexgetDir.absolutePath}\""
-}
-
-task installFlexget(type: Exec, dependsOn: [createVirtualEnv]) {
-    outputs.file new File(flexgetDir, 'bin/flexget')
-
-    workingDir flexgetDir
-    commandLine './bin/pip', 'install', 'flexget'
-}
-
-task installTransmissionRPC(type: Exec, dependsOn: [createVirtualEnv]) {
-    outputs.file new File(flexgetDir, 'bin/transmission-rpc')
-
-    workingDir flexgetDir
-    commandLine './bin/pip', 'install', 'transmission-rpc==3.3.0'
-}
-
-task flexget(type: Exec, dependsOn: [installFlexget, installTransmissionRPC]) {
-
-    workingDir flexgetDir
-    commandLine './bin/flexget', '-c', new File(project.projectDir, 'config.yml').absolutePath,
-            '-l', "${project.buildDir}/flexget.log", 'execute', '--cli-config', "rssFeed=${rssFeed}"
 }
 
 task moveFinishedDownloads() {
 
     inputs.dir completedDownloadsDirectory
-    outputs.upToDateWhen { true }
+    outputs.upToDateWhen { false }
 
     doFirst {
         completedDownloadsDirectory.eachFile() { file ->
@@ -91,4 +61,4 @@ task moveFinishedDownloads() {
     }
 }
 
-task run(dependsOn: [flexget, moveFinishedDownloads])
+task run(dependsOn: [moveFinishedDownloads])
