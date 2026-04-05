@@ -18,9 +18,10 @@ ext {
     }
 }
 
+def showPattern = ~/^(?i)(.*)S\d{1,2}E\d{1,2}.*/
+
 task moveFinishedDownloads() {
 
-    inputs.dir completedDownloadsDirectory
     outputs.upToDateWhen { false }
 
     doFirst {
@@ -29,10 +30,10 @@ task moveFinishedDownloads() {
             def fileName = file.name
             logger.lifecycle "Working on: ${fileName}"
 
-            def showFinder = (fileName =~ /^(?i)(.*)S\d{1,2}E\d{1,2}.*/)
+            def showFinder = (fileName =~ showPattern)
 
             if (!showFinder.matches()) {
-                return;
+                return
             }
 
             String show = showFinder.group(1).replaceAll(/\./, ' ').trim()
@@ -44,14 +45,12 @@ task moveFinishedDownloads() {
             if (file.isFile()) {
                 logger.lifecycle "Moving ${fileName} to ${showDir}"
 
-                file.renameTo(new File(showDir, file.getName()));
+                file.renameTo(new File(showDir, fileName))
             } else {
                 logger.lifecycle "Moving contents of ${fileName} to ${showDir}"
 
                 ant.move(todir: showDir, includeEmptyDirs: false) {
-                    fileset(dir: file, excludes: completedDownloadsFileExclusions.join(', ')) {
-                        include(name: '**/**')
-                    }
+                    fileset(dir: file, excludes: completedDownloadsFileExclusions.join(', '))
                     flattenmapper()
                 }
 
